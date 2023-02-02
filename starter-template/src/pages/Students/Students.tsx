@@ -1,27 +1,37 @@
+import { useQuery } from '@tanstack/react-query'
 import { getStudents } from 'apis/students.api'
 import { Fragment, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Students as StudentType } from 'types/students.type'
+import { useQueryString } from 'utils/untils'
 
 export default function Students() {
-  const [students, setStudents] = useState<StudentType>([])
-  const [isloading, setIsLoading] = useState<boolean>(false)
+  // const [students, setStudents] = useState<StudentType>([])
+  // const [isLoading, setIsLoading] = useState<boolean>(false)
 
-  useEffect(() => {
-    setIsLoading(true)
-    getStudents(1, 10)
-      .then((res) => {
-        setStudents(res.data)
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
-  }, [])
+  // useEffect(() => {
+  //   setIsLoading(true)
+  //   getStudents(1, 10)
+  //     .then((res) => {
+  //       setStudents(res.data)
+  //     })
+  //     .finally(() => {
+  //       setIsLoading(false)
+  //     })
+  // }, [])
+  //
+  const querySting = useQueryString()
+  const page = Number(querySting.page) || 1
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['students', page],
+    queryFn: () => getStudents(page, 10)
+  })
 
   return (
     <div>
       <h1 className='text-lg'>Students</h1>
-      {isloading && (
+      {isLoading && (
         <div role='status' className='mt-6 animate-pulse'>
           <div className='mb-4 h-4  rounded bg-gray-200 dark:bg-gray-700' />
           <div className='mb-2.5 h-10  rounded bg-gray-200 dark:bg-gray-700' />
@@ -39,7 +49,7 @@ export default function Students() {
           <span className='sr-only'>Loading...</span>
         </div>
       )}
-      {!isloading && (
+      {!isLoading && (
         <Fragment>
           <div className='relative mt-6 overflow-x-auto shadow-md sm:rounded-lg'>
             <table className='w-full text-left text-sm text-gray-500 dark:text-gray-400'>
@@ -63,7 +73,7 @@ export default function Students() {
                 </tr>
               </thead>
               <tbody>
-                {students.map((student) => (
+                {data?.data.map((student) => (
                   <tr
                     key={student.id}
                     className='border-b bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-600'
