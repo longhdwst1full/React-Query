@@ -1,8 +1,81 @@
+import { useMutation } from '@tanstack/react-query'
+import { addStudent } from 'apis/students.api'
+import { useMemo, useState } from 'react'
+import { useMatch } from 'react-router-dom'
+import { Student } from 'types/students.type'
+import { isAxiosError } from 'utils/untils'
+
+type FormStateType = Omit<Student, 'id'>
+const initiaFormState: FormStateType = {
+  avatar: '',
+  country: '',
+  btc_address: '',
+  email: '',
+  first_name: '',
+  last_name: '',
+  gender: 'other'
+}
+
+type FormError =
+  | {
+      [key in keyof FormStateType]: string
+    }
+  | null
+
 export default function AddStudent() {
+  const [formState, setFormState] = useState<FormStateType>(initiaFormState)
+
+  const addMatch = useMatch('/students/add')
+  const isAddMatch = Boolean(addMatch)
+  // console.log(addMatch)
+
+  const { mutate, mutateAsync, error, data, reset } = useMutation({
+    mutationFn: (body: FormStateType) => {
+      // return http.post('students',body)
+      return addStudent(body)
+    }
+  })
+
+  const errorForm: FormError = useMemo(() => {
+    if (isAxiosError<{ error: FormError }>(error) && error?.response?.status === 422) {
+      return error?.response?.data.error
+    }
+    return null
+  }, [error])
+
+  // curring funtion
+  const handleChange = (name: keyof FormStateType) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    setFormState((pre) => ({ ...pre, [name]: event.target.value }))
+    if (data || error) {
+      reset()
+    }
+  }
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    console.log(formState)
+    // xử lý submoit form and reset form
+
+    // cách 1
+    // mutate(formState, {
+    //   onSuccess: () => {
+    //     setFormState(initiaFormState)
+    //   }
+    // })
+    // cách 2
+
+    try {
+      const data = await mutateAsync(formState)
+      console.log('data: ', data)
+      setFormState(initiaFormState)
+    } catch (error) {
+      console.log('error: ', error)
+    }
+  }
   return (
     <div>
-      <h1 className='text-lg'>Add/Edit Student</h1>
-      <form className='mt-6'>
+      <h1 className='text-lg'>{isAddMatch ? 'Add' : 'Edit'} Student</h1>
+      <form className='mt-6' onSubmit={handleSubmit}>
         <div className='group relative z-0 mb-6 w-full'>
           <input
             type='email'
@@ -10,6 +83,8 @@ export default function AddStudent() {
             id='floating_email'
             className='peer block w-full appearance-none border-0 border-b-2 border-gray-300 bg-transparent py-2.5 px-0 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-0 dark:border-gray-600 dark:text-white dark:focus:border-blue-500'
             placeholder=' '
+            value={formState.email}
+            onChange={handleChange('email')}
             required
           />
           <label
@@ -18,6 +93,12 @@ export default function AddStudent() {
           >
             Email address
           </label>
+          {errorForm && (
+            <p className='mt-2 text-sm text-red-600'>
+              <span className='font-medium'>Lỗi !</span>
+              {errorForm.email}
+            </p>
+          )}
         </div>
 
         <div className='group relative z-0 mb-6 w-full'>
@@ -28,6 +109,9 @@ export default function AddStudent() {
                   id='gender-1'
                   type='radio'
                   name='gender'
+                  value='male'
+                  checked={formState.gender === 'male'}
+                  onChange={handleChange('gender')}
                   className='h-4 w-4 border-gray-300 bg-gray-100 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 dark:focus:ring-blue-600'
                 />
                 <label htmlFor='gender-1' className='ml-2 text-sm font-medium text-gray-900 dark:text-gray-300'>
@@ -36,10 +120,12 @@ export default function AddStudent() {
               </div>
               <div className='mb-4 flex items-center'>
                 <input
-                  defaultChecked
                   id='gender-2'
                   type='radio'
                   name='gender'
+                  value='female'
+                  checked={formState.gender === 'female'}
+                  onChange={handleChange('gender')}
                   className='h-4 w-4 border-gray-300 bg-gray-100 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 dark:focus:ring-blue-600'
                 />
                 <label htmlFor='gender-2' className='ml-2 text-sm font-medium text-gray-900 dark:text-gray-300'>
@@ -48,10 +134,12 @@ export default function AddStudent() {
               </div>
               <div className='flex items-center'>
                 <input
-                  defaultChecked
                   id='gender-3'
                   type='radio'
                   name='gender'
+                  value='other'
+                  checked={formState.gender === 'other'}
+                  onChange={handleChange('gender')}
                   className='h-4 w-4 border-gray-300 bg-gray-100 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 dark:focus:ring-blue-600'
                 />
                 <label htmlFor='gender-3' className='ml-2 text-sm font-medium text-gray-900 dark:text-gray-300'>
@@ -66,6 +154,8 @@ export default function AddStudent() {
             type='text'
             name='country'
             id='country'
+            value={formState.country}
+            onChange={handleChange('country')}
             className='peer block w-full appearance-none border-0 border-b-2 border-gray-300 bg-transparent py-2.5 px-0 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-0 dark:border-gray-600 dark:text-white dark:focus:border-blue-500'
             placeholder=' '
             required
@@ -81,9 +171,10 @@ export default function AddStudent() {
           <div className='group relative z-0 mb-6 w-full'>
             <input
               type='tel'
-              pattern='[0-9]{3}-[0-9]{3}-[0-9]{4}'
               name='first_name'
               id='first_name'
+              value={formState.first_name}
+              onChange={handleChange('first_name')}
               className='peer block w-full appearance-none border-0 border-b-2 border-gray-300 bg-transparent py-2.5 px-0 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-0 dark:border-gray-600 dark:text-white dark:focus:border-blue-500'
               placeholder=' '
               required
@@ -100,6 +191,8 @@ export default function AddStudent() {
               type='text'
               name='last_name'
               id='last_name'
+              value={formState.last_name}
+              onChange={handleChange('last_name')}
               className='peer block w-full appearance-none border-0 border-b-2 border-gray-300 bg-transparent py-2.5 px-0 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-0 dark:border-gray-600 dark:text-white dark:focus:border-blue-500'
               placeholder=' '
               required
@@ -118,6 +211,8 @@ export default function AddStudent() {
               type='text'
               name='avatar'
               id='avatar'
+              value={formState.avatar}
+              onChange={handleChange('avatar')}
               className='peer block w-full appearance-none border-0 border-b-2 border-gray-300 bg-transparent py-2.5 px-0 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-0 dark:border-gray-600 dark:text-white dark:focus:border-blue-500'
               placeholder=' '
               required
@@ -134,6 +229,8 @@ export default function AddStudent() {
               type='text'
               name='btc_address'
               id='btc_address'
+              value={formState.btc_address}
+              onChange={handleChange('btc_address')}
               className='peer block w-full appearance-none border-0 border-b-2 border-gray-300 bg-transparent py-2.5 px-0 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-0 dark:border-gray-600 dark:text-white dark:focus:border-blue-500'
               placeholder=' '
               required
