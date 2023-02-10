@@ -1,5 +1,5 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { deleteStudent, getStudents } from 'apis/students.api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { deleteStudent, getStudent, getStudents } from 'apis/students.api'
 import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
 // import { Students as StudentType } from 'types/students.type'
@@ -23,6 +23,7 @@ export default function Students() {
   //     })
   // }, [])
   //
+  const queryClient = useQueryClient()
   const querySting = useQueryString()
   const page = Number(querySting.page) || 1
 
@@ -35,11 +36,19 @@ export default function Students() {
   const totalStudentCount = Number(studentQuery.data?.headers['x-total-count'] || 0)
   const totalPage = Math.ceil(totalStudentCount / LIMIT)
 
+  const handleRefetchStudent = (id: number) => {
+    queryClient.prefetchQuery(['student', String(id)], {
+      queryFn: () => getStudent(id),
+      staleTime: 1000 * 10
+    })
+  }
+
   // delete item
   const deleteStudentMutation = useMutation({
     mutationFn: (id: string | number) => deleteStudent(id),
     onSuccess: (_, id) => {
       toast.success(`Xóa thành công Student với id là ${id} `)
+      queryClient.invalidateQueries({ queryKey: ['students', page], exact: true })
     }
   })
   const handleDelete = (id: number) => {
@@ -101,6 +110,7 @@ export default function Students() {
               <tbody>
                 {studentQuery.data?.data.map((student) => (
                   <tr
+                    onMouseEnter={() => handleRefetchStudent(student.id)}
                     key={student.id}
                     className='border-b bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-600'
                   >
