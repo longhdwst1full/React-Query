@@ -1,11 +1,12 @@
-import { useMutation } from '@tanstack/react-query'
-import { addStudent } from 'apis/students.api'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { addStudent, getStudent, updateStudent } from 'apis/students.api'
 import { useMemo, useState } from 'react'
-import { useMatch } from 'react-router-dom'
+import { useMatch, useParams } from 'react-router-dom'
+import { toast } from 'react-toastify/dist/core'
 import { Student } from 'types/students.type'
 import { isAxiosError } from 'utils/untils'
 
-type FormStateType = Omit<Student, 'id'>
+type FormStateType = Omit<Student, 'id'> | Student
 const initiaFormState: FormStateType = {
   avatar: '',
   country: '',
@@ -26,55 +27,83 @@ export default function AddStudent() {
   const [formState, setFormState] = useState<FormStateType>(initiaFormState)
 
   const addMatch = useMatch('/students/add')
-  const isAddMatch = Boolean(addMatch)
+  const isAddModel = Boolean(addMatch)
+  const { id } = useParams()
   // console.log(addMatch)
 
-  const { mutate, mutateAsync, error, data, reset } = useMutation({
+  // const { mutate, mutateAsync, error, data, reset } = useMutation(
+  const addStudentMutation = useMutation({
     mutationFn: (body: FormStateType) => {
       // return http.post('students',body)
       return addStudent(body)
     }
   })
 
+  useQuery({
+    queryKey: ['student', id],
+    queryFn: () => getStudent(id as string),
+
+    enabled: id !== undefined,
+    onSuccess: (data) => {
+      setFormState(data?.data)
+    }
+  })
+
+  const updateStudentMutation = useMutation({
+    mutationFn: (_) => updateStudent(id as string, formState as Student)
+  })
+
   const errorForm: FormError = useMemo(() => {
+    const error = isAddModel ? addStudentMutation.error : updateStudentMutation.error
+    
     if (isAxiosError<{ error: FormError }>(error) && error?.response?.status === 422) {
       return error?.response?.data.error
     }
     return null
-  }, [error])
+  }, [addStudentMutation.error,isAddModel, updateStudentMutation.error])
 
   // curring funtion
   const handleChange = (name: keyof FormStateType) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormState((pre) => ({ ...pre, [name]: event.target.value }))
-    if (data || error) {
-      reset()
+    if (addStudentMutation.data || addStudentMutation.error) {
+      addStudentMutation.reset()
     }
   }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    console.log(formState)
+    // console.log(formState)
+
     // xử lý submoit form and reset form
+    if (isAddModel) {
+      // cách 1
+      // mutate(formState, {
+      //   onSuccess: () => {
+      //     setFormState(initiaFormState)
+      //   }
+      // })
+      // cách 2
 
-    // cách 1
-    // mutate(formState, {
-    //   onSuccess: () => {
-    //     setFormState(initiaFormState)
-    //   }
-    // })
-    // cách 2
-
-    try {
-      const data = await mutateAsync(formState)
-      console.log('data: ', data)
-      setFormState(initiaFormState)
-    } catch (error) {
-      console.log('error: ', error)
+      try {
+        const data = await addStudentMutation.mutateAsync(formState)
+        console.log('data: ', data)
+        setFormState(initiaFormState)
+        toast.success('Add thành công')
+      } catch (error) {
+        console.log('error: ', error)
+      }
+    } else {
+      updateStudentMutation.mutate(undefined, {
+        onSuccess: (data) => {
+          // console.log('data: ', data)
+          toast.success('update thành công')
+        }
+      })
     }
   }
   return (
     <div>
-      <h1 className='text-lg'>{isAddMatch ? 'Add' : 'Edit'} Student</h1>
+      <h1 className='text-lg'>{isAddModel ? 'Add' : 'Edit'} Student</h1>
       <form className='mt-6' onSubmit={handleSubmit}>
         <div className='group relative z-0 mb-6 w-full'>
           <input
@@ -248,7 +277,7 @@ export default function AddStudent() {
           type='submit'
           className='w-full rounded-lg bg-blue-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 sm:w-auto'
         >
-          Submit
+          {isAddModel ? 'Add' : 'Update'}
         </button>
       </form>
     </div>
