@@ -30,7 +30,15 @@ export default function Students() {
   // const { data, isLoading } = useQuery({
   const studentQuery = useQuery({
     queryKey: ['students', page],
-    queryFn: () => getStudents(page, 10)
+    queryFn: () => {
+      const controller = new AbortController()
+      setTimeout(() => {
+        controller.abort()
+      }, 5000)
+      return getStudents(page, LIMIT, controller.signal)
+    },
+    keepPreviousData: true,
+    retry: 1
   })
 
   const totalStudentCount = Number(studentQuery.data?.headers['x-total-count'] || 0)
@@ -40,6 +48,14 @@ export default function Students() {
     queryClient.prefetchQuery(['student', String(id)], {
       queryFn: () => getStudent(id),
       staleTime: 1000 * 10
+    })
+  }
+
+  const fetchStudent = (second: number) => {
+    const id = '6'
+    queryClient.prefetchQuery(['student', id], {
+      queryFn: () => getStudent(id),
+      staleTime: second * 1000
     })
   }
 
@@ -54,9 +70,42 @@ export default function Students() {
   const handleDelete = (id: number) => {
     deleteStudentMutation.mutate(id)
   }
+
+  const refetchStudents = () => {
+    studentQuery.refetch()
+  }
+
+  const cancelRefetchStudents = () => {
+    queryClient.cancelQueries({
+      queryKey: ['students', page]
+    })
+  }
   return (
     <div>
       <h1 className='text-lg'>Students</h1>
+
+      <div>
+        <button className='mt-6 rounded bg-blue-500 px-5 py-2 text-white' onClick={() => fetchStudent(10)}>
+          Click 10s
+        </button>
+
+        <button className='mt-6 rounded bg-blue-500 px-5 py-2 text-white' onClick={() => fetchStudent(2)}>
+          Click 3s
+        </button>
+      </div>
+
+      <div>
+        <button className='mt-6 rounded bg-pink-500 px-5 py-2 text-white' onClick={refetchStudents}>
+          Refetch Student
+        </button>
+      </div>
+
+      <div>
+        <button className='mt-6 rounded bg-pink-500 px-5 py-2 text-white' onClick={cancelRefetchStudents}>
+          Cancel Refetch Student
+        </button>
+      </div>
+
       <div className='mt-6'>
         <Link
           to='/students/add'
